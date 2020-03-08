@@ -125,8 +125,13 @@ CREATE OPERATOR <= (
 CREATE OPERATOR = (
    leftarg = PersonName, rightarg = PersonName, procedure = pname_eq,
    commutator = = ,
-   -- leave out negator since we didn't create <> operator
-   -- negator = <> ,
+   negator = <> ,
+   restrict = eqsel, join = eqjoinsel
+);
+CREATE OPERATOR <> (
+   leftarg = PersonName, rightarg = PersonName, procedure = pname_ne,
+   commutator = <> ,
+   negator = = ,
    restrict = eqsel, join = eqjoinsel
 );
 CREATE OPERATOR >= (
@@ -154,5 +159,10 @@ CREATE OPERATOR CLASS complex_abs_ops
         OPERATOR        5       > ,
         FUNCTION        1       complex_abs_cmp(complex, complex);
 
-
+CREATE FUNCTION family(PersonName) RETURNS cstring
+   AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
+CREATE FUNCTION given(PersonName) RETURNS cstring
+   AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
+CREATE FUNCTION show(PersonName) RETURNS cstring
+   AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
 

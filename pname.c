@@ -184,7 +184,7 @@ pname_le(PG_FUNCTION_ARGS)
 	PersonName    *a = (PersonName *) PG_GETARG_POINTER(0);
 	PersonName    *b = (PersonName *) PG_GETARG_POINTER(1);
 
-	PG_RETURN_BOOL(complex_abs_cmp_internal(a, b) <= 0);
+	PG_RETURN_BOOL(pname_cmp(a, b) <= 0);
 }
 
 PG_FUNCTION_INFO_V1(pname_eq);
@@ -195,7 +195,7 @@ pname_eq(PG_FUNCTION_ARGS)
 	PersonName    *a = (PersonName *) PG_GETARG_POINTER(0);
 	PersonName    *b = (PersonName *) PG_GETARG_POINTER(1);
 
-	PG_RETURN_BOOL(complex_abs_cmp_internal(a, b) == 0);
+	PG_RETURN_BOOL(pname_cmp(a, b) == 0);
 }
 
 PG_FUNCTION_INFO_V1(pname_ge);
@@ -206,7 +206,7 @@ pname_ge(PG_FUNCTION_ARGS)
 	PersonName    *a = (PersonName *) PG_GETARG_POINTER(0);
 	PersonName    *b = (PersonName *) PG_GETARG_POINTER(1);
 
-	PG_RETURN_BOOL(complex_abs_cmp_internal(a, b) >= 0);
+	PG_RETURN_BOOL(pname_cmp(a, b) >= 0);
 }
 
 PG_FUNCTION_INFO_V1(pname_gt);
@@ -217,17 +217,96 @@ pname_gt(PG_FUNCTION_ARGS)
 	PersonName    *a = (PersonName *) PG_GETARG_POINTER(0);
 	PersonName    *b = (PersonName *) PG_GETARG_POINTER(1);
 
-	PG_RETURN_BOOL(complex_abs_cmp_internal(a, b) > 0);
+	PG_RETURN_BOOL(pname_cmp(a, b) > 0);
 }
 
 PG_FUNCTION_INFO_V1(pname_ne);
 
 Datum
-pname_gt(PG_FUNCTION_ARGS)
+pname_ne(PG_FUNCTION_ARGS)
 {
 	PersonName    *a = (PersonName *) PG_GETARG_POINTER(0);
 	PersonName    *b = (PersonName *) PG_GETARG_POINTER(1);
 
-	PG_RETURN_BOOL(complex_abs_cmp_internal(a, b) != 0);
+	PG_RETURN_BOOL(pname_cmp(a, b) != 0);
 }
 
+static char *
+name_workshop(char * name, int mode)
+{
+  	char * given = strchr(name, ',');
+  	char * family;
+	char * result;
+  	
+  	printf("%s\n", str);
+  	int index = strlen(name) - strlen(given);
+//  	printf("%d\n", index);
+	if(mode == 1){
+  		result = palloc((index+1) * sizeof(char));
+	
+		strncpy(result, name, index);
+		return result;
+	}
+  	// printf("%s\n", family);
+//  	printf("%s\n", str);
+//  	printf("%s\n", str);
+	if(name[index+1] == ' ')
+		given++;
+	given++;
+	if(mode == 2){
+		result = given;
+		return result;
+	}
+	family = palloc((index+1) * sizeof(char));
+	strncpy(family, name, index);
+	char * remain = strchr(given, ' ');
+	char * first;
+	index = strlen(given) - strlen(remain);
+	first = palloc((index+1) * sizeof(char));
+	strncpy(first, given, index);
+
+	result = palloc((strlen(first) + strlen(family) +2) * sizeof(char));
+	result = strcat(result, first);
+	result = strcat(result, " ");
+	result = strcat(result, family);
+
+	
+	
+  	
+//  	free(str);
+//  	free(mid);
+  	pfree(family);
+	pfree(first);
+    return result;
+}
+
+
+PG_FUNCTION_INFO_V1(family);
+
+Datum
+family(PG_FUNCTION_ARGS)
+{
+	PersonName    *a = (PersonName *) PG_GETARG_POINTER(0);
+	// char * result;
+	PG_RETURN_CSTRING(name_workshop(a->name, 1));
+}
+
+PG_FUNCTION_INFO_V1(given);
+
+Datum
+given(PG_FUNCTION_ARGS)
+{
+	PersonName    *a = (PersonName *) PG_GETARG_POINTER(0);
+	// char * result;
+	PG_RETURN_CSTRING(name_workshop(a->name, 2));
+}
+
+PG_FUNCTION_INFO_V1(show);
+
+Datum
+show(PG_FUNCTION_ARGS)
+{
+	PersonName    *a = (PersonName *) PG_GETARG_POINTER(0);
+	// char * result;
+	PG_RETURN_CSTRING(name_workshop(a->name, 3));
+}
