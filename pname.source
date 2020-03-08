@@ -1,0 +1,158 @@
+---------------------------------------------------------------------------
+--
+-- pname.sql-
+--    This file shows how to create a new user-defined type and how to
+--    use this new type.
+--
+--
+-- Portions Copyright (c) 1996-2019, PostgreSQL Global Development Group
+-- Portions Copyright (c) 1994, Regents of the University of California
+--
+-- src/tutorial/pname.source
+--
+---------------------------------------------------------------------------
+
+-----------------------------
+-- Creating a new type:
+--	We are going to create a new type called 'PersonName' which represents
+--	person names.
+--	A user-defined type must have an input and an output function, and
+--	optionally can have binary input and output functions.  All of these
+--	are usually user-defined C functions.
+-----------------------------
+
+-- Assume the user defined functions are in _OBJWD_/pname$DLSUFFIX
+-- (we do not want to assume this is in the dynamic loader search path).
+-- Look at $PWD/pname.c for the source.  Note that we declare all of
+-- them as STRICT, so we do not need to cope with NULL inputs in the
+-- C code.  We also mark them IMMUTABLE, since they always return the
+-- same outputs given the same inputs.
+
+-- the input function 'pname_in' takes a null-terminated string (the
+-- textual representation of the type) and turns it into the internal
+-- (in memory) representation. You will get a message telling you 'complex'
+-- does not exist yet but that's okay.
+
+CREATE FUNCTION pname_in(cstring)
+   RETURNS PersonName
+   AS '_OBJWD_/pname'
+   LANGUAGE C IMMUTABLE STRICT;
+
+-- the output function 'pname_out' takes the internal representation and
+-- converts it into the textual representation.
+
+CREATE FUNCTION pname_out(PersonName)
+   RETURNS cstring
+   AS '_OBJWD_/pname'
+   LANGUAGE C IMMUTABLE STRICT;
+
+-- the binary input function 'pname_recv' takes a StringInfo buffer
+-- and turns its contents into the internal representation.
+
+CREATE FUNCTION pname_recv(internal)
+   RETURNS PersonName
+   AS '_OBJWD_/pname'
+   LANGUAGE C IMMUTABLE STRICT;
+
+-- the binary output function 'pname_send' takes the internal representation
+-- and converts it into a (hopefully) platform-independent bytea string.
+
+CREATE FUNCTION pname_send(PersonName)
+   RETURNS bytea
+   AS '_OBJWD_/pname'
+   LANGUAGE C IMMUTABLE STRICT;
+
+
+-- now, we can create the type. The internallength specifies the size of the
+-- memory block required to hold the type (we need two 8-byte doubles).
+
+CREATE TYPE PersonName (
+   internallength = variable,
+   input = pname_in,
+   output = pname_out,
+   receive = pname_recv,
+   send = pname_send,
+);
+
+
+-----------------------------
+-- Using the new type:
+--	user-defined types can be used like ordinary built-in types.
+-----------------------------
+
+-- eg. we can use it in a table
+
+-- CREATE TABLE test_complex (
+-- 	a	complex,
+-- 	b	complex
+-- );
+
+-- -- data for user-defined types are just strings in the proper textual
+-- -- representation.
+
+-- INSERT INTO test_complex VALUES ('(1.0, 2.5)', '(4.2, 3.55 )');
+-- INSERT INTO test_complex VALUES ('(33.0, 51.4)', '(100.42, 93.55)');
+
+-- SELECT * FROM test_complex;
+
+-----------------------
+
+-- first, define the required operators
+CREATE FUNCTION pname_eq(PersonName, PersonName) RETURNS bool
+   AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
+CREATE FUNCTION pname_ne(PersonName, PersonName) RETURNS bool
+   AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
+CREATE FUNCTION pname_gt(PersonName, PersonName) RETURNS bool
+   AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
+CREATE FUNCTION pname_ge(PersonName, PersonName) RETURNS bool
+   AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
+CREATE FUNCTION pname_lt(PersonName, PersonName) RETURNS bool
+   AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
+CREATE FUNCTION pname_le(PersonName, PersonName) RETURNS bool
+   AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;   
+
+
+CREATE OPERATOR < (
+   leftarg = PersonName, rightarg = PersonName, procedure = pname_lt,
+   commutator = > , negator = >= ,
+   restrict = scalarltsel, join = scalarltjoinsel
+);
+CREATE OPERATOR <= (
+   leftarg = PersonName, rightarg = PersonName, procedure = pname_le,
+   commutator = >= , negator = > ,
+   restrict = scalarlesel, join = scalarlejoinsel
+);
+CREATE OPERATOR = (
+   leftarg = PersonName, rightarg = PersonName, procedure = pname_eq,
+   commutator = = ,
+   -- leave out negator since we didn't create <> operator
+   -- negator = <> ,
+   restrict = eqsel, join = eqjoinsel
+);
+CREATE OPERATOR >= (
+   leftarg = PersonName, rightarg = PersonName, procedure = pname_ge,
+   commutator = <= , negator = < ,
+   restrict = scalargesel, join = scalargejoinsel
+);
+CREATE OPERATOR > (
+   leftarg = PersonName, rightarg = PersonName, procedure = pname_gt,
+   commutator = < , negator = <= ,
+   restrict = scalargtsel, join = scalargtjoinsel
+);
+
+-- create the support function too
+CREATE FUNCTION pname_cmp(PersonName, PersonName) RETURNS int4
+   AS '_OBJWD_/pname' LANGUAGE C IMMUTABLE STRICT;
+
+-- now we can make the operator class
+CREATE OPERATOR CLASS complex_abs_ops
+    DEFAULT FOR TYPE complex USING btree AS
+        OPERATOR        1       < ,
+        OPERATOR        2       <= ,
+        OPERATOR        3       = ,
+        OPERATOR        4       >= ,
+        OPERATOR        5       > ,
+        FUNCTION        1       complex_abs_cmp(complex, complex);
+
+
+
